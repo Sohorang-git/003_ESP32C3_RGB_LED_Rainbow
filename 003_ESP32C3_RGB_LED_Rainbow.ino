@@ -2,9 +2,14 @@ const int RGB_LED_PIN = 8;
 const int BOOT_BUTTON_PIN = 9;
 const int MAX_BRIGHTNESS = 48;
 const unsigned long FRAME_INTERVAL_MS = 20;
+const unsigned long DEBOUNCE_MS = 50;
 
 uint16_t hue = 0;
 unsigned long lastFrameAt = 0;
+bool ledEnabled = true;
+bool lastButtonReading = HIGH;
+bool stableButtonState = HIGH;
+unsigned long lastDebounceAt = 0;
 
 void hsvToRgb(uint16_t hueValue, uint8_t saturation, uint8_t value,
               uint8_t &red, uint8_t &green, uint8_t &blue) {
@@ -69,11 +74,30 @@ void setup() {
   turnLedOff();
 }
 
-void loop() {
-  bool buttonPressed = digitalRead(BOOT_BUTTON_PIN) == LOW;
+void updateButton() {
+  bool reading = digitalRead(BOOT_BUTTON_PIN);
 
-  if (buttonPressed) {
-    turnLedOff();
+  if (reading != lastButtonReading) {
+    lastDebounceAt = millis();
+  }
+
+  if (millis() - lastDebounceAt > DEBOUNCE_MS && reading != stableButtonState) {
+    stableButtonState = reading;
+    if (stableButtonState == LOW) {
+      ledEnabled = !ledEnabled;
+      if (!ledEnabled) {
+        turnLedOff();
+      }
+    }
+  }
+
+  lastButtonReading = reading;
+}
+
+void loop() {
+  updateButton();
+
+  if (!ledEnabled) {
     delay(10);
     return;
   }
